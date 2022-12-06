@@ -181,11 +181,19 @@ async function createDIDDocument(
 
   const defaultAssertionMethod = {
     id: `DID:SDI:${identity}#ASSR_${++assertionMethodCount}`,
-    type: 'EcdsaSecp256r1Signature2019',
+    type: 'EcdsaSecp256k1RecoveryMethod2020',
     controller: `DID:SDI:${controller}`,
     blockchainAccountId: `eip155:${parseInt(chainId)}:${identity}`,
   };
   assertionMethodList.push(defaultAssertionMethod);
+
+  const defaultAuthentication = {
+    id: `DID:SDI:${identity}#AUTH_${++authenticationCount}`,
+    type: 'EcdsaSecp256k1VerificationKey2019',
+    controller: `DID:SDI:${controller}`,
+    publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
+  };
+  authenticationList.push(defaultAuthentication);
 
   const identityIsIssuer = await isIssuer(identity, network);
   if (identityIsIssuer) {
@@ -196,14 +204,6 @@ async function createDIDDocument(
         'https://myntfsid.mypinata.cloud/ipfs/' + hashToCID(service),
     };
     serviceList.push(defaultService);
-  } else {
-    const defaultAuthentication = {
-      id: `DID:SDI:${identity}#AUTH_${++authenticationCount}`,
-      type: 'EcdsaSecp256k1VerificationKey2019',
-      controller: `DID:SDI:${controller}`,
-      publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
-    };
-    authenticationList.push(defaultAuthentication);
   }
 
   for (let event of events) {
@@ -320,7 +320,6 @@ async function createDIDDocument(
         capabilityDelegationList.push(newCapabilityDelegation);
         break;
       case 'service':
-        console.log(event);
         if (event.value == 'expired') {
           serviceCount++;
           break;
@@ -340,7 +339,10 @@ async function createDIDDocument(
   }
 
   const didDocument = {
-    context: ['https://www.w3.org/ns/did/v1', 'https://w3id.org/security/v1'],
+    '@context': [
+      'https://www.w3.org/ns/did/v1',
+      'https://w3id.org/security/v1',
+    ],
     id: `DID:SDI:${identity}`,
     controller: `DID:SDI:${controller}`,
     ...(authenticationList.length > 0 && {

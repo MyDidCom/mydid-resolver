@@ -6,7 +6,7 @@ const { getDIDDocument } = require('../utils/didHandler');
 const didRegex = /^(DID|did):(SDI|sdi):0x[a-fA-F0-9]{40}$/;
 
 exports.getIdentifier = catchAsync(async (req, res, next) => {
-  const { network } = req.query;
+  const { network, date, tag } = req.query;
 
   // check identifier
   const { identifier } = req.params;
@@ -21,8 +21,6 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
     return next(new AppError(`Invalid eth address : ${e}`, 400));
   }
 
-  const { date } = req.query;
-
   var didDocument = {};
   try {
     didDocument = await getDIDDocument(identifier.split(':')[2], date, network);
@@ -31,5 +29,18 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
       new AppError(`Error while retrieving DID document : ${e}`, 400)
     );
   }
+
+  if (tag) {
+    for (key in didDocument) {
+      if (typeof didDocument[key] == 'object') {
+        for (method of didDocument[key]) {
+          if (method.id && method.id == `DID:SDI:${checksumAddress}#${tag}`) {
+            return res.status(200).json(method);
+          }
+        }
+      }
+    }
+  }
+
   return res.status(200).json(didDocument);
 });
