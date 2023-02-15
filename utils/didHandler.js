@@ -40,7 +40,9 @@ module.exports.getDIDDocument = async function (addr, date, network) {
   const authenticationKey = miniDid[2];
 
   if (!authenticationKey) {
-    throw 'This identity does not exist';
+    const didDocument = createDIDDocument(addr, addr, null, null, [], network);
+
+    return didDocument;
   }
 
   let blockNumber = await getAttributes(addr, network);
@@ -187,14 +189,16 @@ async function createDIDDocument(
   };
   assertionMethodList.push(defaultAssertionMethod);
 
-  const defaultAuthentication = {
-    id: `DID:SDI:${identity}#AUTH_${++authenticationCount}`,
-    type: 'EcdsaSecp256k1VerificationKey2019',
-    controller: `DID:SDI:${controller}`,
-    publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
-  };
-  authenticationList.push(defaultAuthentication);
-
+  if (authenticationKey) {
+    const defaultAuthentication = {
+      id: `DID:SDI:${identity}#AUTH_${++authenticationCount}`,
+      type: 'EcdsaSecp256k1VerificationKey2019',
+      controller: `DID:SDI:${controller}`,
+      publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
+    };
+    authenticationList.push(defaultAuthentication);
+  }
+  
   const identityIsIssuer = await isIssuer(identity, network);
   if (identityIsIssuer) {
     const defaultService = {
