@@ -61,6 +61,7 @@ module.exports.getDIDDocument = async function (addr, date, network) {
             fromBlock: blockNumber,
             toBlock: blockNumber,
           });
+
     for (let event of pastEvents) {
       if (event.returnValues.identity != addr) continue;
 
@@ -155,6 +156,22 @@ async function isIssuer(addr, network) {
         .call();
 }
 
+async function isVerifier(addr, network) {
+  return network == 'testnet'
+    ? mydidContractTestnet.methods
+        .hasRole(
+          createKeccakHash('keccak256').update('VERIFIER_ROLE').digest(),
+          addr
+        )
+        .call()
+    : mydidContractMainnet.methods
+        .hasRole(
+          createKeccakHash('keccak256').update('VERIFIER_ROLE').digest(),
+          addr
+        )
+        .call();
+}
+
 async function createDIDDocument(
   identity,
   controller,
@@ -198,9 +215,10 @@ async function createDIDDocument(
     };
     authenticationList.push(defaultAuthentication);
   }
-  
+
   const identityIsIssuer = await isIssuer(identity, network);
-  if (identityIsIssuer) {
+  const identityIsVerifier = await isVerifier(identity, network);
+  if (identityIsIssuer || identityIsVerifier) {
     const defaultService = {
       id: `DID:SDI:${identity}#SERV_${++serviceCount}`,
       type: 'Public Profile',
