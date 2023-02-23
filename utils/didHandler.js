@@ -222,7 +222,7 @@ async function createDIDDocument(
     const defaultService = {
       id: `DID:SDI:${identity}#SERV_${++serviceCount}`,
       type: 'Public Profile',
-      serviceEnpoint:
+      serviceEndpoint:
         'https://myntfsid.mypinata.cloud/ipfs/' + hashToCID(service),
     };
     serviceList.push(defaultService);
@@ -351,7 +351,7 @@ async function createDIDDocument(
             event.name.split(',')[0]
           }_${++serviceCount}`,
           type: event.name.split(',')[1],
-          serviceEnpoint: event.value,
+          serviceEndpoint: event.value,
         };
         serviceList.push(newService);
         break;
