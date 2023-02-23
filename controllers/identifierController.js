@@ -38,10 +38,10 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
             return res.status(200).json(method);
           }
         }
-        // not found
-        return res.status(200).json({id :`DID:SDI:${checksumAddress}#${tag}` })
       }
     }
+    // not found
+    return res.status(200).json({ id: `DID:SDI:${checksumAddress}#${tag}` });
   }
 
   return res.status(200).json(didDocument);
