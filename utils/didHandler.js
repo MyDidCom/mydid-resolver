@@ -1,6 +1,9 @@
 const Web3 = require('web3');
 const createKeccakHash = require('keccak');
 const bs58 = require('bs58');
+const { base58btc } = require('multiformats/bases/base58');
+const secp256k1 = require('secp256k1');
+const { toChecksumAddress } = require('ethereum-checksum-address');
 const contractABI = require('../resources/bscContractABI');
 
 const web3Mainnet = new Web3(process.env.WEB3_PROVIDER_MAINNET);
@@ -33,15 +36,22 @@ const attributeConversionMap = {
   BCAC: 'blockchainAccountId',
 };
 
-module.exports.getDIDDocument = async function (addr, date, network) {
+module.exports.getDIDDocument = async function (addr, date, network, did) {
   const miniDid = await getDID(addr, network);
-  const controller = miniDid[0];
+  const controller = addr == miniDid[0] ? did : `DID:SDI:${miniDid[0]}`;
   const service = miniDid[1];
   const authenticationKey = miniDid[2];
 
   if (!authenticationKey) {
-    const didDocument = createDIDDocument(addr, addr, null, null, [], network);
-
+    const didDocument = createDIDDocument(
+      addr,
+      did,
+      did,
+      null,
+      null,
+      [],
+      network
+    );
     return didDocument;
   }
 
@@ -118,6 +128,7 @@ module.exports.getDIDDocument = async function (addr, date, network) {
 
   const didDocument = createDIDDocument(
     addr,
+    did,
     controller,
     service,
     authenticationKey,
@@ -126,6 +137,25 @@ module.exports.getDIDDocument = async function (addr, date, network) {
   );
 
   return didDocument;
+};
+
+module.exports.didToAddress = function (did) {
+  const didValue = did.split(':')[2];
+  try {
+    const publicKeyUintArray = base58btc.decode(didValue);
+    const compressedPublicKey = Buffer.from(publicKeyUintArray).toString('hex');
+    const decompressedBuffer = secp256k1.publicKeyConvert(
+      Buffer.from(compressedPublicKey, 'hex'),
+      false
+    );
+    const hash = createKeccakHash('keccak256')
+      .update(Buffer.from(decompressedBuffer).slice(1))
+      .digest();
+    const address = toChecksumAddress(hash.slice(-20).toString('hex'));
+    return address;
+  } catch (e) {
+    return didValue;
+  }
 };
 
 async function getDID(addr, network) {
@@ -173,7 +203,8 @@ async function isVerifier(addr, network) {
 }
 
 async function createDIDDocument(
-  identity,
+  addr,
+  did,
   controller,
   service,
   authenticationKey,
@@ -199,28 +230,28 @@ async function createDIDDocument(
       : process.env.CHAIN_ID_MAINNET;
 
   const defaultAssertionMethod = {
-    id: `DID:SDI:${identity}#ASSR_${++assertionMethodCount}`,
+    id: `${did}#ASSR_${++assertionMethodCount}`,
     type: 'EcdsaSecp256k1RecoveryMethod2020',
-    controller: `DID:SDI:${controller}`,
-    blockchainAccountId: `eip155:${parseInt(chainId)}:${identity}`,
+    controller: `${controller}`,
+    blockchainAccountId: `eip155:${parseInt(chainId)}:${addr}`,
   };
   assertionMethodList.push(defaultAssertionMethod);
 
   if (authenticationKey) {
     const defaultAuthentication = {
-      id: `DID:SDI:${identity}#AUTH_${++authenticationCount}`,
+      id: `${did}#AUTH_${++authenticationCount}`,
       type: 'EcdsaSecp256k1VerificationKey2019',
-      controller: `DID:SDI:${controller}`,
+      controller: `${controller}`,
       publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
     };
     authenticationList.push(defaultAuthentication);
   }
 
-  const identityIsIssuer = await isIssuer(identity, network);
-  const identityIsVerifier = await isVerifier(identity, network);
+  const identityIsIssuer = await isIssuer(addr, network);
+  const identityIsVerifier = await isVerifier(addr, network);
   if (identityIsIssuer || identityIsVerifier) {
     const defaultService = {
-      id: `DID:SDI:${identity}#SERV_${++serviceCount}`,
+      id: `${did}#SERV_${++serviceCount}`,
       type: 'Public Profile',
       serviceEndpoint:
         'https://myntfsid.mypinata.cloud/ipfs/' + hashToCID(service),
@@ -247,11 +278,9 @@ async function createDIDDocument(
           break;
         }
         const newAuthentication = {
-          id: `DID:SDI:${identity}#${
-            event.name.split(',')[0]
-          }_${++authenticationCount}`,
+          id: `${did}#${event.name.split(',')[0]}_${++authenticationCount}`,
           type: method,
-          controller: `DID:SDI:${controller}`,
+          controller: `${controller}`,
         };
         newAuthentication[encoding] =
           encoding == 'publicKeyMultibase'
@@ -267,11 +296,9 @@ async function createDIDDocument(
           break;
         }
         const newAssertionMethod = {
-          id: `DID:SDI:${identity}#${
-            event.name.split(',')[0]
-          }_${++assertionMethodCount}`,
+          id: `${did}#${event.name.split(',')[0]}_${++assertionMethodCount}`,
           type: method,
-          controller: `DID:SDI:${controller}`,
+          controller: `${controller}`,
         };
         newAssertionMethod[encoding] =
           encoding == 'publicKeyMultibase'
@@ -287,11 +314,9 @@ async function createDIDDocument(
           break;
         }
         const newKeyAgreement = {
-          id: `DID:SDI:${identity}#${
-            event.name.split(',')[0]
-          }_${++keyAgreementCount}`,
+          id: `${did}#${event.name.split(',')[0]}_${++keyAgreementCount}`,
           type: method,
-          controller: `DID:SDI:${controller}`,
+          controller: `${controller}`,
         };
         newKeyAgreement[encoding] =
           encoding == 'publicKeyMultibase'
@@ -307,11 +332,11 @@ async function createDIDDocument(
           break;
         }
         const newCapabilityInvocation = {
-          id: `DID:SDI:${identity}#${
+          id: `${did}#${
             event.name.split(',')[0]
           }_${++capabilityInvocationCount}`,
           type: method,
-          controller: `DID:SDI:${controller}`,
+          controller: `${controller}`,
         };
         newCapabilityInvocation[encoding] =
           encoding == 'publicKeyMultibase'
@@ -327,11 +352,11 @@ async function createDIDDocument(
           break;
         }
         const newCapabilityDelegation = {
-          id: `DID:SDI:${identity}#${
+          id: `${did}#${
             event.name.split(',')[0]
           }_${++capabilityDelegationCount}`,
           type: method,
-          controller: `DID:SDI:${controller}`,
+          controller: `${controller}`,
         };
         newCapabilityDelegation[encoding] =
           encoding == 'publicKeyMultibase'
@@ -347,9 +372,7 @@ async function createDIDDocument(
           break;
         }
         const newService = {
-          id: `DID:SDI:${identity}#${
-            event.name.split(',')[0]
-          }_${++serviceCount}`,
+          id: `${did}#${event.name.split(',')[0]}_${++serviceCount}`,
           type: event.name.split(',')[1],
           serviceEndpoint: event.value,
         };
@@ -365,8 +388,8 @@ async function createDIDDocument(
       'https://www.w3.org/ns/did/v1',
       'https://w3id.org/security/v1',
     ],
-    id: `DID:SDI:${identity}`,
-    controller: `DID:SDI:${controller}`,
+    id: `${did}`,
+    controller: `${controller}`,
     ...(authenticationList.length > 0 && {
       authentication: authenticationList,
     }),

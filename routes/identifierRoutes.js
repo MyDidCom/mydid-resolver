@@ -3,6 +3,6 @@ const identifierController = require('../controllers/identifierController');
 
 const router = express.Router();
 
-router.route('/:identifier').get(identifierController.getIdentifier);
+router.route('/:did').get(identifierController.getIdentifier);
 
 module.exports = router;
