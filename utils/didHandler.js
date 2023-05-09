@@ -282,12 +282,7 @@ async function createDIDDocument(
           type: method,
           controller: `${controller}`,
         };
-        newAuthentication[encoding] =
-          encoding == 'publicKeyMultibase'
-            ? `z${hexToBase58(event.value)}`
-            : encoding == 'blockchainAccountId'
-            ? `eip155:${parseInt(chainId)}:${event.value}`
-            : event.value;
+        newAuthentication[encoding] = event.value;
         authenticationList.push(newAuthentication);
         break;
       case 'assertionMethod':
@@ -300,12 +295,7 @@ async function createDIDDocument(
           type: method,
           controller: `${controller}`,
         };
-        newAssertionMethod[encoding] =
-          encoding == 'publicKeyMultibase'
-            ? `z${hexToBase58(event.value)}`
-            : encoding == 'blockchainAccountId'
-            ? `eip155:${parseInt(chainId)}:${event.value}`
-            : event.value;
+        newAssertionMethod[encoding] = event.value;
         assertionMethodList.push(newAssertionMethod);
         break;
       case 'keyAgreement':
@@ -318,12 +308,7 @@ async function createDIDDocument(
           type: method,
           controller: `${controller}`,
         };
-        newKeyAgreement[encoding] =
-          encoding == 'publicKeyMultibase'
-            ? `z${hexToBase58(event.value)}`
-            : encoding == 'blockchainAccountId'
-            ? `eip155:${parseInt(chainId)}:${event.value}`
-            : event.value;
+        newKeyAgreement[encoding] = event.value;
         keyAgreementList.push(newKeyAgreement);
         break;
       case 'capabilityInvocation':
@@ -338,12 +323,7 @@ async function createDIDDocument(
           type: method,
           controller: `${controller}`,
         };
-        newCapabilityInvocation[encoding] =
-          encoding == 'publicKeyMultibase'
-            ? `z${hexToBase58(event.value)}`
-            : encoding == 'blockchainAccountId'
-            ? `eip155:${parseInt(chainId)}:${event.value}`
-            : event.value;
+        newCapabilityInvocation[encoding] = event.value;
         capabilityInvocationList.push(newCapabilityInvocation);
         break;
       case 'capabilityDelegation':
@@ -358,12 +338,7 @@ async function createDIDDocument(
           type: method,
           controller: `${controller}`,
         };
-        newCapabilityDelegation[encoding] =
-          encoding == 'publicKeyMultibase'
-            ? `z${hexToBase58(event.value)}`
-            : encoding == 'blockchainAccountId'
-            ? `eip155:${parseInt(chainId)}:${event.value}`
-            : event.value;
+        newCapabilityDelegation[encoding] = event.value;
         capabilityDelegationList.push(newCapabilityDelegation);
         break;
       case 'service':
