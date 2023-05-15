@@ -242,7 +242,7 @@ async function createDIDDocument(
       id: `${did}#AUTH_${++authenticationCount}`,
       type: 'EcdsaSecp256k1VerificationKey2019',
       controller: `${controller}`,
-      publicKeyMultibase: `z${hexToBase58(authenticationKey)}`,
+      publicKeyMultibase: hexToBase58btc(authenticationKey),
     };
     authenticationList.push(defaultAuthentication);
   }
@@ -394,9 +394,14 @@ function hashToCID(hash) {
   return cid;
 }
 
-function hexToBase58(hex) {
-  const cleanHex = (hex + '').replace('0x', '');
-  const bytes = Buffer.from(cleanHex, 'hex');
-  const base58 = bs58.encode(bytes);
-  return base58;
+function hexToBase58btc(value) {
+  try {
+    const byteArray = Uint8Array.from(
+      Buffer.from(value.replace('0x', ''), 'hex')
+    );
+    return base58btc.encode(byteArray);
+  } catch (e) {
+    console.log(e);
+    return value;
+  }
 }
