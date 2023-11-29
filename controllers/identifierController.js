@@ -16,7 +16,9 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
   if (!did || !did.match(didRegex))
     return next(new AppError(`Invalid input`, 400));
 
-  if (!chainId) return next(new AppError(`Missing query`, 400));
+  if (!chainId) {
+    chainId = '56';
+  }
 
   // format chainId if hex format
   if (chainId.startsWith('0x')) chainId = Number(chainId).toString();
