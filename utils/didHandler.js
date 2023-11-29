@@ -4,19 +4,33 @@ const bs58 = require('bs58');
 const { base58btc } = require('multiformats/bases/base58');
 const secp256k1 = require('secp256k1');
 const { toChecksumAddress } = require('ethereum-checksum-address');
-const contractABI = require('../resources/bscContractABI');
+const contractABI = require('../resources/contractABI');
 
-const web3Mainnet = new Web3(process.env.WEB3_PROVIDER_MAINNET);
-const mydidContractMainnet = new web3Mainnet.eth.Contract(
-  contractABI,
-  process.env.SMART_CONTRACT_ADDRESS_MAINNET
-);
+const blockchainInstances = {};
 
-const web3Testnet = new Web3(process.env.WEB3_PROVIDER_TESTNET);
-const mydidContractTestnet = new web3Testnet.eth.Contract(
-  contractABI,
-  process.env.SMART_CONTRACT_ADDRESS_TESTNET
-);
+const providers = process.env.WEB3_PROVIDERS.split(',');
+const contractsAddresses = process.env.SMART_CONTRACT_ADDRESSES.split(',');
+
+const promises = providers.map(async (provider, index) => {
+  const web3 = new Web3(provider);
+  const contract = new web3.eth.Contract(
+    contractABI,
+    contractsAddresses[index]
+  );
+  const chainId = await web3.eth.getChainId();
+
+  blockchainInstances[chainId] = {
+    web3,
+    contract,
+  };
+});
+
+Promise.all(promises).then(() => {
+  console.log(
+    'Resolver initialized for following chain ids :',
+    Object.keys(blockchainInstances).join(', ')
+  );
+});
 
 const attributeConversionMap = {
   // type
@@ -36,41 +50,41 @@ const attributeConversionMap = {
   BCAC: 'blockchainAccountId',
 };
 
-module.exports.getDIDDocument = async function (addr, date, network, did) {
-  const miniDid = await getDID(addr, network);
+module.exports.getDIDDocument = async function (addr, date, chainId, did) {
+  if (Object.keys(blockchainInstances).indexOf(chainId) == -1)
+    throw 'Blockchain not supported';
+
+  const miniDid = await getDID(addr, chainId);
   const controller = addr == miniDid[0] ? did : `DID:SDI:${miniDid[0]}`;
   const service = miniDid[1];
   const authenticationKey = miniDid[2];
 
   if (!authenticationKey) {
-    const didDocument = createDIDDocument(
+    const didDocument = computeDIDDocument(
       addr,
       did,
       did,
       null,
       null,
       [],
-      network
+      chainId
     );
     return didDocument;
   }
 
-  let blockNumber = await getAttributes(addr, network);
+  let blockNumber = await getAttributes(addr, chainId);
 
   const events = [];
   const revokedEvents = [];
 
   while (blockNumber != 0) {
-    let pastEvents =
-      network == 'testnet'
-        ? await mydidContractTestnet.getPastEvents('DIDAttributeChanged', {
-            fromBlock: blockNumber,
-            toBlock: blockNumber,
-          })
-        : await mydidContractMainnet.getPastEvents('DIDAttributeChanged', {
-            fromBlock: blockNumber,
-            toBlock: blockNumber,
-          });
+    let pastEvents = await blockchainInstances[chainId].contract.getPastEvents(
+      'DIDAttributeChanged',
+      {
+        fromBlock: blockNumber,
+        toBlock: blockNumber,
+      }
+    );
 
     for (let event of pastEvents) {
       if (event.returnValues.identity != addr) continue;
@@ -81,9 +95,9 @@ module.exports.getDIDDocument = async function (addr, date, network, did) {
       // filter with date
       if (date) {
         const blockTimestamp = (
-          network == 'testnet'
-            ? await web3Testnet.eth.getBlock(currentBlockNumber)
-            : await web3Mainnet.eth.getBlock(currentBlockNumber)
+          await blockchainInstances[chainId].web3.eth.getBlock(
+            currentBlockNumber
+          )
         ).timestamp;
         const blockDate = new Date(0);
         blockDate.setUTCSeconds(blockTimestamp);
@@ -95,12 +109,16 @@ module.exports.getDIDDocument = async function (addr, date, network, did) {
       expirationDate.setUTCSeconds(event.returnValues.validTo);
       if (event.returnValues.validTo == 0) {
         revokedEvents.push({
-          name: web3Mainnet.utils.hexToString(event.returnValues.name),
+          name: blockchainInstances[chainId].web3.utils.hexToString(
+            event.returnValues.name
+          ),
           value: event.returnValues.value,
         });
       } else if (new Date() > expirationDate) {
         events.push({
-          name: web3Mainnet.utils.hexToString(event.returnValues.name),
+          name: blockchainInstances[chainId].web3.utils.hexToString(
+            event.returnValues.name
+          ),
           value: 'expired',
         });
       } else {
@@ -108,17 +126,22 @@ module.exports.getDIDDocument = async function (addr, date, network, did) {
           revokedEvents.filter(
             (el) =>
               el.name ==
-                web3Mainnet.utils.hexToString(event.returnValues.name) &&
-              el.value == event.returnValues.value
+                blockchainInstances[chainId].web3.utils.hexToString(
+                  event.returnValues.name
+                ) && el.value == event.returnValues.value
           ).length > 0
         ) {
           events.push({
-            name: web3Mainnet.utils.hexToString(event.returnValues.name),
+            name: blockchainInstances[chainId].web3.utils.hexToString(
+              event.returnValues.name
+            ),
             value: 'expired',
           });
         } else {
           events.push({
-            name: web3Mainnet.utils.hexToString(event.returnValues.name),
+            name: blockchainInstances[chainId].web3.utils.hexToString(
+              event.returnValues.name
+            ),
             value: event.returnValues.value,
           });
         }
@@ -126,14 +149,14 @@ module.exports.getDIDDocument = async function (addr, date, network, did) {
     }
   }
 
-  const didDocument = createDIDDocument(
+  const didDocument = computeDIDDocument(
     addr,
     did,
     controller,
     service,
     authenticationKey,
     events.reverse(),
-    network
+    chainId
   );
 
   return didDocument;
@@ -158,58 +181,39 @@ module.exports.didToAddress = function (did) {
   }
 };
 
-async function getDID(addr, network) {
-  return network == 'testnet'
-    ? mydidContractTestnet.methods.getDID(addr).call()
-    : mydidContractMainnet.methods.getDID(addr).call();
+async function getDID(addr, chainId) {
+  return blockchainInstances[chainId].contract.methods.getDID(addr).call();
 }
 
-async function getAttributes(addr, network) {
-  return network == 'testnet'
-    ? mydidContractTestnet.methods.changedDidDocuments(addr).call()
-    : mydidContractMainnet.methods.changedDidDocuments(addr).call();
+async function getAttributes(addr, chainId) {
+  return blockchainInstances[chainId].contract.methods
+    .changedDidDocuments(addr)
+    .call();
 }
 
-async function isIssuer(addr, network) {
-  return network == 'testnet'
-    ? mydidContractTestnet.methods
-        .hasRole(
-          createKeccakHash('keccak256').update('ISSUER_ROLE').digest(),
-          addr
-        )
-        .call()
-    : mydidContractMainnet.methods
-        .hasRole(
-          createKeccakHash('keccak256').update('ISSUER_ROLE').digest(),
-          addr
-        )
-        .call();
+async function isIssuer(addr, chainId) {
+  return blockchainInstances[chainId].contract.methods
+    .hasRole(createKeccakHash('keccak256').update('ISSUER_ROLE').digest(), addr)
+    .call();
 }
 
-async function isVerifier(addr, network) {
-  return network == 'testnet'
-    ? mydidContractTestnet.methods
-        .hasRole(
-          createKeccakHash('keccak256').update('VERIFIER_ROLE').digest(),
-          addr
-        )
-        .call()
-    : mydidContractMainnet.methods
-        .hasRole(
-          createKeccakHash('keccak256').update('VERIFIER_ROLE').digest(),
-          addr
-        )
-        .call();
+async function isVerifier(addr, chainId) {
+  return blockchainInstances[chainId].contract.methods
+    .hasRole(
+      createKeccakHash('keccak256').update('VERIFIER_ROLE').digest(),
+      addr
+    )
+    .call();
 }
 
-async function createDIDDocument(
+async function computeDIDDocument(
   addr,
   did,
   controller,
   service,
   authenticationKey,
   events,
-  network
+  chainId
 ) {
   const authenticationList = [];
   const assertionMethodList = [];
@@ -223,11 +227,6 @@ async function createDIDDocument(
   let capabilityDelegationCount = 0;
   let keyAgreementCount = 0;
   let serviceCount = 0;
-
-  const chainId =
-    network == 'testnet'
-      ? process.env.CHAIN_ID_TESNET
-      : process.env.CHAIN_ID_MAINNET;
 
   const defaultAssertionMethod = {
     id: `${did}#ASSR_${++assertionMethodCount}`,
@@ -247,8 +246,8 @@ async function createDIDDocument(
     authenticationList.push(defaultAuthentication);
   }
 
-  const identityIsIssuer = await isIssuer(addr, network);
-  const identityIsVerifier = await isVerifier(addr, network);
+  const identityIsIssuer = await isIssuer(addr, chainId);
+  const identityIsVerifier = await isVerifier(addr, chainId);
   if (identityIsIssuer || identityIsVerifier) {
     const defaultService = {
       id: `${did}#SERV_${++serviceCount}`,

@@ -7,7 +7,8 @@ const didRegex =
   /^(DID|did):(SDI|sdi|MYDID|mydid):(0x[a-fA-F0-9]{40}|z[1-9A-HJ-NP-Za-km-z]{40,50})$/;
 
 exports.getIdentifier = catchAsync(async (req, res, next) => {
-  const { network, date, tag } = req.query;
+  const { date, tag } = req.query;
+  let { chainId } = req.query;
 
   // check identifier
   const { did } = req.params;
@@ -15,7 +16,11 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
   if (!did || !did.match(didRegex))
     return next(new AppError(`Invalid input`, 400));
 
-    
+  if (!chainId) return next(new AppError(`Missing query`, 400));
+
+  // format chainId if hex format
+  if (chainId.startsWith('0x')) chainId = Number(chainId).toString();
+
   // get eth address
   const address = didToAddress(did);
 
@@ -28,7 +33,7 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
 
   var didDocument = {};
   try {
-    didDocument = await getDIDDocument(checksumAddress, date, network, did);
+    didDocument = await getDIDDocument(checksumAddress, date, chainId, did);
   } catch (e) {
     return next(
       new AppError(`Error while retrieving DID document : ${e}`, 400)
