@@ -10,6 +10,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const identifierRouter = require('./routes/identifierRoutes');
+const statusRoutes = require('./routes/statusRoutes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use(compression());
 
 // ROUTES
 app.use('/1.0/identifiers', identifierRouter);
+app.use('/1.0/status', statusRoutes);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl}`, 404));
