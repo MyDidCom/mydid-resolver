@@ -220,7 +220,7 @@ async function computeDIDDocument(
   const capabilityInvocationList = [];
   const capabilityDelegationList = [];
   const keyAgreementList = [];
-  const serviceList = [];
+  let serviceList = [];
   let authenticationCount = 0;
   let assertionMethodCount = 0;
   let capabilityInvocationCount = 0;
@@ -345,12 +345,13 @@ async function computeDIDDocument(
           serviceCount++;
           break;
         }
+        // only keep last service
         const newService = {
-          id: `${did}#${event.name.split(',')[0]}_${++serviceCount}`,
+          id: `${did}#${event.name.split(',')[0]}_1`,
           type: event.name.split(',')[1],
           serviceEndpoint: event.value,
         };
-        serviceList.push(newService);
+        serviceList = [newService];
         break;
       default:
         break;
