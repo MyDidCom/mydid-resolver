@@ -53,11 +53,11 @@ const attributeConversionMap = {
 module.exports.getDIDDocument = async function (addr, date, chainId, did) {
   if (Object.keys(blockchainInstances).indexOf(chainId) == -1)
     throw 'Blockchain not supported';
+  const miniDid = await getDID(addr, chainId);
 
   const noController =
     miniDid[0].toLowerCase() == '0xffffffffffffffffffffffffffffffffffffffff';
 
-  const miniDid = await getDID(addr, chainId);
   const controller =
     addr == miniDid[0]
       ? did
