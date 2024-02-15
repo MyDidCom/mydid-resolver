@@ -55,8 +55,12 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     throw 'Blockchain not supported';
   const miniDid = await getDID(addr, chainId);
 
+  console.log(miniDid);
+
   const noController =
     miniDid[0].toLowerCase() == '0xffffffffffffffffffffffffffffffffffffffff';
+
+  console.log(noController);
 
   const controller =
     addr == miniDid[0]
@@ -71,7 +75,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     const didDocument = computeDIDDocument(
       addr,
       did,
-      did,
+      controller,
       null,
       null,
       [],
@@ -269,16 +273,18 @@ async function computeDIDDocument(
     authenticationList.push(defaultAuthentication);
   }
 
-  const identityIsIssuer = await isIssuer(addr, chainId);
-  const identityIsVerifier = await isVerifier(addr, chainId);
-  if (identityIsIssuer || identityIsVerifier) {
-    const defaultService = {
-      id: `${did}#SERV_${++serviceCount}`,
-      type: 'Public Profile',
-      serviceEndpoint:
-        'https://myntfsid.mypinata.cloud/ipfs/' + hashToCID(service),
-    };
-    serviceList.push(defaultService);
+  if (service) {
+    const identityIsIssuer = await isIssuer(addr, chainId);
+    const identityIsVerifier = await isVerifier(addr, chainId);
+    if (identityIsIssuer || identityIsVerifier) {
+      const defaultService = {
+        id: `${did}#SERV_${++serviceCount}`,
+        type: 'Public Profile',
+        serviceEndpoint:
+          'https://myntfsid.mypinata.cloud/ipfs/' + hashToCID(service),
+      };
+      serviceList.push(defaultService);
+    }
   }
 
   for (let event of events) {
