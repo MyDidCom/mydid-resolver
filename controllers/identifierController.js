@@ -31,7 +31,7 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
   try {
     checksumAddress = toChecksumAddress(address);
   } catch (e) {
-    return next(new AppError(`Invalid eth address : ${e}`, 400));
+    return next(new AppError(`Invalid value : ${e}`, 400));
   }
 
   var didDocument = {};
