@@ -55,12 +55,8 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     throw 'Blockchain not supported';
   const miniDid = await getDID(addr, chainId);
 
-  console.log(miniDid);
-
   const noController =
     miniDid[0].toLowerCase() == '0xffffffffffffffffffffffffffffffffffffffff';
-
-  console.log(noController);
 
   const controller =
     addr == miniDid[0]
@@ -70,20 +66,6 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
       : miniDid[0];
   const service = miniDid[1];
   const authenticationKey = miniDid[2];
-
-  if (noController) {
-    const didDocument = computeDIDDocument(
-      addr,
-      did,
-      controller,
-      null,
-      null,
-      [],
-      chainId,
-      true
-    );
-    return didDocument;
-  }
 
   if (!authenticationKey) {
     const didDocument = computeDIDDocument(
@@ -239,8 +221,7 @@ async function computeDIDDocument(
   service,
   authenticationKey,
   events,
-  chainId,
-  noController
+  chainId
 ) {
   const authenticationList = [];
   const assertionMethodList = [];
@@ -261,7 +242,7 @@ async function computeDIDDocument(
     controller: `${controller}`,
     blockchainAccountId: `eip155:${parseInt(chainId)}:${addr}`,
   };
-  if (!noController) assertionMethodList.push(defaultAssertionMethod);
+  assertionMethodList.push(defaultAssertionMethod);
 
   if (authenticationKey) {
     const defaultAuthentication = {
