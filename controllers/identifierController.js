@@ -69,16 +69,7 @@ exports.getStatus = catchAsync(async (req, res, next) => {
     const web3 = new Web3(provider);
     let chainId = await web3.eth.getChainId();
 
-    let did;
-    if (chainId == 10200 || chainId == 100) {
-      did = 'did:mydid:z2AsGyqPDL8zSMjFcUBjvH8vP5oC6SqTsbqspaSstWBbct';
-    } else if (chainId == 56) {
-      did = 'did:mydid:zeb8iho6uuFKmfWxpG5Sawu1F3wvw7tE8RMzMg567hWWT';
-    } else if (chainId == 97) {
-      did = 'DID:SDI:0x26E7eeF1C4fA4e13978ABb740d3Aabe6743e08D7';
-    } else {
-      did = 'did:mydid:z2AsGyqPDL8zSMjFcUBjvH8vP5oC6SqTsbqspaSstWBbct';
-    }
+    const did = 'did:mydid:z2AsGyqPDL8zSMjFcUBjvH8vP5oC6SqTsbqspaSstWBbct';
 
     const address = didToAddress(did);
 
@@ -104,13 +95,9 @@ exports.getStatus = catchAsync(async (req, res, next) => {
     }
   }
 
-  // return res.status(200).json({
-  //   alive: true,
-  //   operational: true,
-  //   responseTime: new Date() - now,
-  // });
-
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
+    responseTime: new Date() - now,
+    didDocuments: didDocuments,
   });
 });
