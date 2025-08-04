@@ -10,6 +10,8 @@ const blockchainInstances = {};
 
 const providers = process.env.WEB3_PROVIDERS.split(',');
 const contractsAddresses = process.env.SMART_CONTRACT_ADDRESSES.split(',');
+const didLog = [];
+const didLogBoot = new Date().toISOString();
 
 const promises = providers.map(async (provider, index) => {
   const web3 = new Web3(provider);
@@ -50,10 +52,40 @@ const attributeConversionMap = {
   BCAC: 'blockchainAccountId',
 };
 
+module.exports.getActiveChainIds = function () {
+  return Object.keys(blockchainInstances);
+};
+
+module.exports.getDidLog = function () {
+  return {
+    data: didLog,
+    boot: didLogBoot,
+  };
+};
+
 module.exports.getDIDDocument = async function (addr, date, chainId, did) {
   if (Object.keys(blockchainInstances).indexOf(chainId) == -1)
     throw 'Blockchain not supported';
+
+  if (!didLog.find((entry) => entry.did == did && entry.chainId == chainId)) {
+    didLog.push({
+      did,
+      chainId,
+      ethCall_contractGetDid: 0,
+      ethCall_contractGetAttributes: 0,
+      ethCall_contractGetPastEvents: 0,
+      ethCall_contractIsIssuer: 0,
+      ethCall_contractIsVerifier: 0,
+      getBlock: 0,
+    });
+  }
+
   const miniDid = await getDID(addr, chainId);
+
+  // LOG PURPOSE
+  didLog.find(
+    (entry) => entry.did == did && entry.chainId == chainId
+  ).ethCall_contractGetDid += 1;
 
   const noController =
     miniDid[0].toLowerCase() == '0xffffffffffffffffffffffffffffffffffffffff';
@@ -82,6 +114,11 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
 
   let blockNumber = await getAttributes(addr, chainId);
 
+  // LOG PURPOSE
+  didLog.find(
+    (entry) => entry.did == did && entry.chainId == chainId
+  ).ethCall_contractGetAttributes += 1;
+
   const events = [];
   const revokedEvents = [];
 
@@ -93,6 +130,11 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
         toBlock: blockNumber,
       }
     );
+
+    // LOG PURPOSE
+    didLog.find(
+      (entry) => entry.did == did && entry.chainId == chainId
+    ).ethCall_contractGetPastEvents += 1;
 
     for (let event of pastEvents) {
       if (event.returnValues.identity != addr) continue;
@@ -107,6 +149,12 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
             currentBlockNumber
           )
         ).timestamp;
+
+        // LOG PURPOSE
+        didLog.find(
+          (entry) => entry.did == did && entry.chainId == chainId
+        ).getBlock += 1;
+
         const blockDate = new Date(0);
         blockDate.setUTCSeconds(blockTimestamp);
         if (blockDate > new Date(date)) continue;
@@ -256,7 +304,19 @@ async function computeDIDDocument(
 
   if (service) {
     const identityIsIssuer = await isIssuer(addr, chainId);
+
+    // LOG PURPOSE
+    didLog.find(
+      (entry) => entry.did == did && entry.chainId == chainId
+    ).ethCall_contractIsIssuer += 1;
+
     const identityIsVerifier = await isVerifier(addr, chainId);
+
+    // LOG PURPOSE
+    didLog.find(
+      (entry) => entry.did == did && entry.chainId == chainId
+    ).ethCall_contractIsVerifier += 1;
+
     if (identityIsIssuer || identityIsVerifier) {
       const defaultService = {
         id: `${did}#SERV_${++serviceCount}`,
