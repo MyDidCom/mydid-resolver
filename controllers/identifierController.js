@@ -68,37 +68,37 @@ exports.getIdentifier = catchAsync(async (req, res, next) => {
 exports.getStatus = catchAsync(async (req, res, next) => {
   const now = new Date();
   const providers = process.env.WEB3_PROVIDERS.split(',');
-  // let didDocuments = [];
+  let didDocuments = [];
 
-  // const promises = providers.map(async (provider, index) => {
-  //   const web3 = new Web3(provider);
-  //   let chainId = await web3.eth.getChainId();
+  const promises = providers.map(async (provider, index) => {
+    const web3 = new Web3(provider);
+    let chainId = await web3.eth.getChainId();
 
-  //   const did = 'did:mydid:z2AsGyqPDL8zSMjFcUBjvH8vP5oC6SqTsbqspaSstWBbct';
+    const did = 'did:mydid:z2AsGyqPDL8zSMjFcUBjvH8vP5oC6SqTsbqspaSstWBbct';
 
-  //   const address = didToAddress(did);
+    const address = didToAddress(did);
 
-  //   try {
-  //     const didDocument = await getDIDDocument(
-  //       address,
-  //       null,
-  //       chainId.toString(),
-  //       did
-  //     );
-  //     didDocuments.push(didDocument);
-  //   } catch (e) {
-  //     console.log(`Error while retrieving DID document : ${e}`);
-  //     didDocuments.push({});
-  //   }
-  // });
+    try {
+      const didDocument = await getDIDDocument(
+        address,
+        null,
+        chainId.toString(),
+        did
+      );
+      didDocuments.push(didDocument);
+    } catch (e) {
+      console.log(`Error while retrieving DID document : ${e}`);
+      didDocuments.push({});
+    }
+  });
 
-  // await Promise.all(promises);
+  await Promise.all(promises);
 
-  // for (let didDocument of didDocuments) {
-  //   if (!didDocument.service) {
-  //     return new AppError(`Error while retrieving DID documents`, 400);
-  //   }
-  // }
+  for (let didDocument of didDocuments) {
+    if (!didDocument.service) {
+      return new AppError(`Error while retrieving DID documents`, 400);
+    }
+  }
 
   const didLog = getDidLog();
 
@@ -106,7 +106,22 @@ exports.getStatus = catchAsync(async (req, res, next) => {
     success: true,
     responseTime: new Date() - now,
     activeChainIds: getActiveChainIds(),
+    totalEthCalls: didLog.data.reduce(
+      (acc, curr) =>
+        acc +
+        curr.ethCall_contractGetDid +
+        curr.ethCall_contractGetAttributes +
+        curr.ethCall_contractGetPastEvents +
+        curr.ethCall_contractIsIssuer +
+        curr.ethCall_contractIsVerifier,
+      0
+    ),
+    totalGetBlock: didLog.data.reduce(
+      (acc, curr) => acc + curr.getBlock,
+      0
+    ),
     didLog: didLog.data,
     didLogBoot: didLog.boot,
+    didDocuments: didDocuments,
   });
 });
