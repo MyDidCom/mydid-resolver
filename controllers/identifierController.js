@@ -111,15 +111,15 @@ exports.getStatus = catchAsync(async (req, res, next) => {
         acc +
         curr.ethCall_contractGetDid +
         curr.ethCall_contractGetAttributes +
-        curr.ethCall_contractGetPastEvents +
         curr.ethCall_contractIsIssuer +
         curr.ethCall_contractIsVerifier,
       0
     ),
-    totalGetBlock: didLog.data.reduce(
-      (acc, curr) => acc + curr.getBlock,
+    totalEthGetLogs: didLog.data.reduce(
+      (acc, curr) => acc + curr.eth_getLogs,
       0
     ),
+    totalGetBlock: didLog.data.reduce((acc, curr) => acc + curr.getBlock, 0),
     didLog: didLog.data,
     didLogBoot: didLog.boot,
     didDocuments: didDocuments,

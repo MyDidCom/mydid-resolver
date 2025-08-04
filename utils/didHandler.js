@@ -73,7 +73,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
       chainId,
       ethCall_contractGetDid: 0,
       ethCall_contractGetAttributes: 0,
-      ethCall_contractGetPastEvents: 0,
+      eth_getLogs: 0,
       ethCall_contractIsIssuer: 0,
       ethCall_contractIsVerifier: 0,
       getBlock: 0,
@@ -134,7 +134,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     // LOG PURPOSE
     didLog.find(
       (entry) => entry.did == did && entry.chainId == chainId
-    ).ethCall_contractGetPastEvents += 1;
+    ).eth_getLogs  += 1;
 
     for (let event of pastEvents) {
       if (event.returnValues.identity != addr) continue;
