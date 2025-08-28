@@ -1,4 +1,6 @@
 const dovenv = require('dotenv');
+const mongoose = require('mongoose');
+
 
 process.on('uncaughtException', (err) => {
   console.log('[SERVER] UNCAUGHT EXCEPTION! Shutting down...');
@@ -8,6 +10,11 @@ process.on('uncaughtException', (err) => {
 
 dovenv.config({ path: './config.env' });
 const app = require('./app');
+
+mongoose.set('strictQuery', false);
+mongoose
+  .connect(process.env.DATABASE_LOCAL, {})
+  .then(() => console.log('DB connection successful !'));
 
 const port = process.env.PORT;
 const server = app.listen(port, () => {

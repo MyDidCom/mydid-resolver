@@ -20,6 +20,7 @@
     "helmet": "^4.6.0",
     "hpp": "^0.2.3",
     "keccak": "^3.0.2",
+    "mongoose": "^8.17.1",
     "morgan": "^1.10.0",
     "multiformats": "^9.9.0",
     "secp256k1": "^5.0.0",

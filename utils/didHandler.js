@@ -5,6 +5,7 @@ const { base58btc } = require('multiformats/bases/base58');
 const secp256k1 = require('secp256k1');
 const { toChecksumAddress } = require('ethereum-checksum-address');
 const contractABI = require('../resources/contractABI');
+const DidEntry = require('../models/didEntryModel');
 
 const blockchainInstances = {};
 
@@ -67,6 +68,23 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
   if (Object.keys(blockchainInstances).indexOf(chainId) == -1)
     throw 'Blockchain not supported';
 
+  let lastBlockNumber = await getAttributes(addr, chainId);
+  let blockNumber = lastBlockNumber;
+  let didEntry;
+
+  // add logic for cache system
+  if (!date) {
+    didEntry = await DidEntry.findOne({
+      did,
+      chainId,
+      active: true,
+    });
+
+    if (didEntry && didEntry.lastBlockNumber == lastBlockNumber) {
+      return JSON.parse(didEntry.didDocument);
+    }
+  }
+
   if (!didLog.find((entry) => entry.did == did && entry.chainId == chainId)) {
     didLog.push({
       did,
@@ -100,7 +118,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
   const authenticationKey = miniDid[2];
 
   if (!authenticationKey) {
-    const didDocument = computeDIDDocument(
+    const didDocument = await computeDIDDocument(
       addr,
       did,
       did,
@@ -109,10 +127,21 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
       [],
       chainId
     );
+
+    if (didEntry) {
+      didEntry.didDocument = JSON.stringify(didDocument);
+      didEntry.lastBlockNumber = lastBlockNumber;
+      await didEntry.save();
+    } else {
+      await DidEntry.create({
+        did,
+        chainId,
+        didDocument: JSON.stringify(didDocument),
+        lastBlockNumber,
+      });
+    }
     return didDocument;
   }
-
-  let blockNumber = await getAttributes(addr, chainId);
 
   // LOG PURPOSE
   didLog.find(
@@ -134,7 +163,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     // LOG PURPOSE
     didLog.find(
       (entry) => entry.did == did && entry.chainId == chainId
-    ).eth_getLogs  += 1;
+    ).eth_getLogs += 1;
 
     for (let event of pastEvents) {
       if (event.returnValues.identity != addr) continue;
@@ -205,7 +234,7 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     }
   }
 
-  const didDocument = computeDIDDocument(
+  const didDocument = await computeDIDDocument(
     addr,
     did,
     controller,
@@ -214,6 +243,19 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     events.reverse(),
     chainId
   );
+
+  if (didEntry) {
+    didEntry.didDocument = JSON.stringify(didDocument);
+    didEntry.lastBlockNumber = lastBlockNumber;
+    await didEntry.save();
+  } else {
+    await DidEntry.create({
+      did,
+      chainId,
+      didDocument: JSON.stringify(didDocument),
+      lastBlockNumber,
+    });
+  }
 
   return didDocument;
 };
