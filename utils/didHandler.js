@@ -80,10 +80,12 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
       active: true,
     });
 
-    const didDocument = JSON.parse(didEntry.didDocument);
+    let existingService = false;
+    if (didEntry) {
+      const didDocument = JSON.parse(didEntry.didDocument);
+      existingService = !!didDocument.service;
+    }
 
-    const existingService = !!didDocument.service;
-    
     // if service is not existing, we need to compute the did document
     if (
       didEntry &&
