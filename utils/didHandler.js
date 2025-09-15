@@ -80,7 +80,16 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
       active: true,
     });
 
-    if (didEntry && didEntry.lastBlockNumber == lastBlockNumber) {
+    const didDocument = JSON.parse(didEntry.didDocument);
+
+    const existingService = !!didDocument.service;
+    
+    // if service is not existing, we need to compute the did document
+    if (
+      didEntry &&
+      didEntry.lastBlockNumber == lastBlockNumber &&
+      existingService
+    ) {
       return JSON.parse(didEntry.didDocument);
     }
   }
@@ -244,17 +253,19 @@ module.exports.getDIDDocument = async function (addr, date, chainId, did) {
     chainId
   );
 
-  if (didEntry) {
-    didEntry.didDocument = JSON.stringify(didDocument);
-    didEntry.lastBlockNumber = lastBlockNumber;
-    await didEntry.save();
-  } else {
-    await DidEntry.create({
-      did,
-      chainId,
-      didDocument: JSON.stringify(didDocument),
-      lastBlockNumber,
-    });
+  if (!date) {
+    if (didEntry) {
+      didEntry.didDocument = JSON.stringify(didDocument);
+      didEntry.lastBlockNumber = lastBlockNumber;
+      await didEntry.save();
+    } else {
+      await DidEntry.create({
+        did,
+        chainId,
+        didDocument: JSON.stringify(didDocument),
+        lastBlockNumber,
+      });
+    }
   }
 
   return didDocument;
